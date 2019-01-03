@@ -56,7 +56,6 @@ class MoveNodeForm(forms.ModelForm):
     _position = forms.ChoiceField(required=True, label=_("Position"))
 
     _ref_node_id = forms.TypedChoiceField(required=False,
-                                          coerce=int,
                                           label=_("Relative to"))
 
     def _get_position_ref_node(self, instance):
@@ -119,7 +118,7 @@ class MoveNodeForm(forms.ModelForm):
 
     def _clean_cleaned_data(self):
         """ delete auxilary fields not belonging to node model """
-        reference_node_id = 0
+        reference_node_id = None
 
         if '_ref_node_id' in self.cleaned_data:
             reference_node_id = self.cleaned_data['_ref_node_id']
@@ -133,7 +132,7 @@ class MoveNodeForm(forms.ModelForm):
     def save(self, commit=True):
         position_type, reference_node_id = self._clean_cleaned_data()
 
-        if self.instance.pk is None:
+        if self.instance._state.adding:
             cl_data = {}
             for field in self.cleaned_data:
                 if not isinstance(self.cleaned_data[field], (list, QuerySet)):
@@ -158,7 +157,7 @@ class MoveNodeForm(forms.ModelForm):
                     pos = 'first-sibling'
                 self.instance.move(self._meta.model.get_first_root_node(), pos)
         # Reload the instance
-        self.instance = self._meta.model.objects.get(pk=self.instance.pk)
+        self.instance = self._meta.model.objects.get(path=self.instance.path)
         super(MoveNodeForm, self).save(commit=commit)
         return self.instance
 
@@ -188,7 +187,7 @@ class MoveNodeForm(forms.ModelForm):
     def mk_dropdown_tree(cls, model, for_node=None):
         """ Creates a tree-like list of choices """
 
-        options = [(0, _('-- root --'))]
+        options = [('', _('-- root --'))]
         for node in model.get_root_nodes():
             cls.add_subtree(for_node, node, options)
         return options
